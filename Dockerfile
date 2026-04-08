@@ -1,16 +1,25 @@
-FROM node:20-alpine
+# Build stage
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY backend/package*.json ./backend/
-RUN cd backend && npm ci
+RUN cd backend && npm install
 
 COPY backend/ ./backend/
 RUN cd backend && npm run build
-RUN cd backend && npm prune --production
 
+# Production stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+COPY backend/package*.json ./backend/
+RUN cd backend && npm install --omit=dev
+
+COPY --from=builder /app/backend/dist ./backend/dist
 COPY frontend/ ./frontend/
 
 WORKDIR /app/backend
-EXPOSE 3000
-CMD ["npm", "start"]
+EXPOSE $PORT
+CMD ["node", "dist/api/server.js"]
